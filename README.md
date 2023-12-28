@@ -41,7 +41,7 @@ python server.py
 * --delay можно указать задержку в секундах
 * --photos-dir указать другой путь к каталогу с фотографиями,
 
-* `python3 your_server_script.py --logging --delay 3 --photos-dir /path/to/your/photos`
+* `python3 server.py --logging --delay 3 --photos-dir /path/to/your/photos`
 
 ## Как запустить через docker
 
