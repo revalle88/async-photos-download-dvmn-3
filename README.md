@@ -43,6 +43,13 @@ python server.py
 
 * `python3 your_server_script.py --logging --delay 3 --photos-dir /path/to/your/photos`
 
+## Как запустить через docker
+
+```bash
+docker-compose build
+docker-compose up
+```
+
 ## Как развернуть на сервере
 
 ```bash
