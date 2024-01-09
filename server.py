@@ -27,7 +27,7 @@ class ArchiveHandler:
         )
 
     async def stop_archive_process(self):
-        if self.proc:
+        if self.proc and self.proc.returncode is None:
             self.proc.terminate()
             await self.proc.communicate()
 
@@ -51,20 +51,22 @@ async def archive(request):
     await archive_handler.start_archive_process()
 
     chunk_number = 0
-    while True:
-        logger.info(f"Sending archive chunk {chunk_number}")
-        if response_delay:
-            await asyncio.sleep(response_delay)
-        try:
-            await response.write(await archive_handler.proc.stdout.read(n=CHUNK_SIZE))
-        except ConnectionResetError:
-            logger.error(f"Download was interrupted, terminating zip process")
-        except Exception:
-            logger.error(f"Exception, terminating zip process")
-            await archive_handler.stop_archive_process()
-            break
-        chunk_number += 1
-    return response
+    try:
+        while not archive_handler.proc.stdout.at_eof():
+            logger.info(f"Sending archive chunk {chunk_number}")
+            if settings.response_delay:
+                await asyncio.sleep(settings.response_delay)
+            await response.write(
+                await archive_handler.proc.stdout.read(n=settings.CHUNK_SIZE)
+            )
+            chunk_number += 1
+    except ConnectionResetError:
+        logger.error(f"Download was interrupted, terminating zip process")
+    except Exception:
+        logger.error(f"Exception, terminating zip process")
+    finally:
+        await archive_handler.stop_archive_process()
+        return response
 
 
 async def handle_index_page(request):
