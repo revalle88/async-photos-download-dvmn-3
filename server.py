@@ -1,47 +1,11 @@
-from aiohttp import web
 import aiofiles
-import argparse
 import asyncio
 import logging
 import os
+from aiohttp import web
 
-INTERVAL_SECS = 0
-CHUNK_SIZE = 100000
+import settings
 
-
-parser = argparse.ArgumentParser(description="AioHTTP Photos Archive Server")
-parser.add_argument(
-    "--logging", action="store_true", dest="logging_enabled", help="Enable logging"
-)
-parser.add_argument(
-    "--delay", dest="response_delay", type=int, help="Response delay in seconds"
-)
-parser.add_argument(
-    "--photos-dir",
-    dest="photos_directory",
-    type=str,
-    help="Path to the directory with photos",
-)
-args = parser.parse_args()
-
-logging_enabled = (
-    args.logging_enabled
-    if args.logging_enabled is not None
-    else os.getenv("LOGGING_ENABLED", "true").lower() == "true"
-)
-response_delay = (
-    args.response_delay
-    if args.response_delay is not None
-    else int(os.getenv("RESPONSE_DELAY", INTERVAL_SECS))
-)
-photos_directory = (
-    args.photos_directory
-    if args.photos_directory is not None
-    else os.getenv("PHOTOS_DIRECTORY", None)
-)
-
-if logging_enabled:
-    logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
@@ -69,12 +33,12 @@ class ArchiveHandler:
 
 
 async def archive(request):
-    archive_hash = request.match_info.get("archive_hash", "Anonymous")
+    archive_hash = request.match_info.get("archive_hash", None)
     cwd = os.getcwd()
     archive_path = (
         f"{cwd}/test_photos/{archive_hash}/"
-        if not photos_directory
-        else photos_directory
+        if not settings.photos_directory
+        else f"{settings.photos_directory}/test_photos/{archive_hash}/"
     )
     if not os.path.exists(archive_path):
         raise web.HTTPNotFound()
@@ -95,16 +59,11 @@ async def archive(request):
             await response.write(await archive_handler.proc.stdout.read(n=CHUNK_SIZE))
         except ConnectionResetError:
             logger.error(f"Download was interrupted, terminating zip process")
-            await archive_handler.stop_archive_process()
-            break
         except Exception:
             logger.error(f"Exception, terminating zip process")
             await archive_handler.stop_archive_process()
             break
         chunk_number += 1
-        if archive_handler.proc.stdout.at_eof():
-            logger.info(f"Complete")
-            break
     return response
 
 
@@ -114,7 +73,10 @@ async def handle_index_page(request):
     return web.Response(text=index_contents, content_type="text/html")
 
 
-if __name__ == "__main__":
+async def main():
+    settings.init_config()
+    if settings.logging_enabled:
+        logging.basicConfig(level=logging.DEBUG)
     app = web.Application()
     app.add_routes(
         [
@@ -123,3 +85,7 @@ if __name__ == "__main__":
         ]
     )
     web.run_app(app)
+
+
+if __name__ == "__main__":
+    await main()
