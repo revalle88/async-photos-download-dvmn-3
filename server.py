@@ -86,8 +86,8 @@ async def main():
             web.get("/archive/{archive_hash}/", archive),
         ]
     )
-    web.run_app(app)
+    await web._run_app(app)
 
 
 if __name__ == "__main__":
-    await main()
+    asyncio.run(main())
